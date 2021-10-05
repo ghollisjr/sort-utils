@@ -3,6 +3,89 @@
 (declaim (optimize (speed 3)
                    (space 2)))
 
+(defun bubble-sort! (array
+                     &optional
+                       (predicate #'<=))
+  "Bubble sort implementation.  Note that #'< and #'> do not work with
+this sort algorithm whenever there are repeated values."
+  (let* ((differ t)
+         (len (length array)))
+  (loop
+     while differ
+     do
+       (setf differ nil)
+       (loop
+          for i below (1- len)
+          do (when (not (funcall predicate
+                                 (aref array i)
+                                 (aref array (1+ i))))
+               (rotatef (aref array i)
+                        (aref array (1+ i)))
+               (setf differ t))))
+  array))
+
+(defun merge-sort! (array
+                    &optional
+                      (predicate #'<))
+  "Implements top-down merge sort for arrays."
+  (let* ((n (length array))
+         (b (make-array n)))
+    (labels ((copy (a begin end b)
+               (loop
+                  for k from begin below end
+                  do (setf (aref b k)
+                           (aref a k))))
+             (merge! (a begin middle end b)
+               (let* ((i begin)
+                      (j middle))
+                 (loop
+                    for k from begin below end
+                    do
+                      (if (and (< i middle)
+                               (or (>= j end)
+                                   (funcall predicate
+                                            (aref a i)
+                                            (aref a j))))
+                          (progn
+                            (setf (aref b k)
+                                  (aref a i))
+                            (incf i))
+                          (progn
+                            (setf (aref b k)
+                                  (aref a j))
+                            (incf j))))))
+             (splitmerge! (b begin end a)
+               (when (> (- end begin) 1)
+                 (let* ((middle (truncate (+ end begin)
+                                          2)))
+                   (splitmerge! a begin middle b)
+                   (splitmerge! a middle end b)
+                   (merge! b begin middle end a))))
+             (mergesort! (a b)
+               (copy a 0 n b)
+               (splitmerge! b 0 n a)))
+      (mergesort! array b)
+      array)))
+
+(defun count-sort! (array)
+  "Count sort for non-negative integers."
+  (let* ((max (reduce #'max array))
+         (counts (make-array (1+ max)
+                             :element-type 'integer
+                             :initial-element 0))
+         (index 0))
+    (map nil (lambda (x)
+               (incf (aref counts x)))
+         array)
+    (loop
+       for i upto max
+       for c = (aref counts i)
+       do (loop
+             for j below c
+             do (setf (aref array (1- (incf index)))
+                      i)))
+    array))
+
 (defun radix-sort! (array divisor)
   "Implements the LSB radix sort.  Array argument is modified and
 contains the sorted elements at the end of the computation."
