@@ -8,6 +8,8 @@
                        (predicate #'<=))
   "Bubble sort implementation.  Note that #'< and #'> do not work with
 this sort algorithm whenever there are repeated values."
+  (declare (array array)
+           (function predicate))
   (let* ((differ t)
          (len (length array)))
     (loop
@@ -28,6 +30,8 @@ this sort algorithm whenever there are repeated values."
                     &optional
                       (predicate #'<))
   "Implements top-down merge sort for arrays."
+  (declare (array array)
+           (function predicate))
   (let* ((n (length array))
          (b (make-array n)))
     (labels ((copy (a begin end b)
@@ -67,9 +71,74 @@ this sort algorithm whenever there are repeated values."
       (mergesort! array b)
       array)))
 
-(defun count-sort! (array)
+(defun quick-sort! (array &optional (predicate #'<=))
+  "In-place quick sort algorithm for arrays."
+  (declare (array array)
+           (function predicate))
+  (labels ((partition (pivot-index start end)
+             (let* ((pivot (aref array pivot-index))
+                    (nleft 0)
+                    (nright 0))
+               (symbol-macrolet ((next-left (+ start nleft 1))
+                                 (next-right (- end nright 1)))
+                 (rotatef (aref array start)
+                          (aref array pivot-index))
+                 (loop
+                    while (<= next-left next-right)
+                    do
+                      (cond
+                        ;; This exit is guaranteed
+                        ((= next-left next-right)
+
+                         (if (funcall predicate
+                                      (aref array next-left)
+                                      pivot)
+                             (progn
+                               (rotatef (aref array start)
+                                        (aref array next-left))
+                               (incf nleft))
+                             (progn
+                               (rotatef (aref array start)
+                                        (aref array (1- next-left)))
+                               ;; not needed
+                               ;; (incf nright)
+                               ))
+                         (return (+ start nleft)))
+                        ((funcall predicate
+                                  (aref array next-left)
+                                  pivot)
+                         (incf nleft))
+                        (t
+                         (rotatef (aref array next-left)
+                                  (aref array next-right))
+                         (incf nright)))))))
+           (qsort (start end)
+             (declare (integer start end))
+             (let* ((n (- end start)))
+               (cond
+                 ((<= n 1) array)
+                 ((= n 2)
+                  (symbol-macrolet ((left (aref array start))
+                                    (right (aref array (1- end))))
+                    (when (not (funcall predicate left right))
+                      (rotatef left
+                               right))))
+                 (t
+                  (let* ((pivot-index (+ start
+                                         (random n))))
+                    (setf pivot-index
+                          (partition pivot-index
+                                     start
+                                     end))
+                    (qsort start pivot-index)
+                    (qsort (1+ pivot-index) end)))))))
+    (qsort 0 (length array))
+    array))
+
+(defun count-sort! (array &optional max)
   "Count sort for non-negative integers."
-  (let* ((max (reduce #'max array))
+  (declare (array array))
+  (let* ((max (if max max (reduce #'max array)))
          (counts (make-array (1+ max)
                              :element-type 'integer
                              :initial-element 0))
@@ -87,10 +156,11 @@ this sort algorithm whenever there are repeated values."
     array))
 
 (defun radix-sort! (array divisor)
-  "Implements the LSB radix sort.  Array argument is modified and
-contains the sorted elements at the end of the computation."
-  (declare (array array))
-  (declare (integer divisor))
+  "Implements the LSB radix sort for unsigned integers.  Array
+argument is modified and contains the sorted elements at the end of
+the computation."
+  (declare ((array integer) array)
+           (integer divisor))
   (let* ((len (length array))
          (counts (make-array divisor
                              :element-type 'integer
@@ -168,53 +238,3 @@ contains the sorted elements at the end of the computation."
            do (setf (aref array i)
                     (aref buf1 i))))
       array)))
-
-(defun quick-sort! (array &optional (predicate #'<=))
-  "In-place quick sort algorithm for arrays."
-  (labels ((partition (pivot start end)
-             (let* ((nleft 0)
-                    (nright 0))
-               ;; debug
-               (print (list 'partition-before
-                            array
-                            pivot start end))
-               ;; end debug
-               (symbol-macrolet ((next-left (+ start nleft))
-                                 (next-right (- end nright 1)))
-                 (loop
-                    while (< next-left next-right)
-                    do
-                      (cond
-                        ((funcall predicate
-                                  (aref array next-left)
-                                  pivot)
-                         (incf nleft))
-                        (t
-                         (rotatef (aref array next-left)
-                                  (aref array next-right))
-                         (incf nright))))
-                 ;; debug
-                 (print (list 'partition-after array))
-                 ;; end debug
-                 ;; next-left
-                 next-left
-                 )))
-           (qsort (start end)
-             (declare (integer start end))
-             ;; debug
-             ;; (print (list start end array))
-             ;; end debug
-             (let* ((n (- end start)))
-               (when (> n 1)
-                 (let* ((pivot-index (+ start (random n))))
-                   (setf pivot-index
-                         (partition (aref array pivot-index)
-                                    start
-                                    end))
-                   ;; debug
-                   ;; (print (list pivot-index array))
-                   ;; end debug
-                   (qsort start (1- pivot-index))
-                   (qsort (1+ pivot-index) end))))))
-    (qsort 0 (length array))
-    array))

@@ -10,3 +10,10 @@
        do (setf (aref result i)
                 (random (1+ max))))
     result))
+
+(defun check-sort (array &optional (predicate #'<=))
+  (every #'identity
+         (map 'list
+              predicate
+              array
+              (subseq array 1))))
