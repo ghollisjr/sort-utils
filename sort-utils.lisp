@@ -10,19 +10,19 @@
 this sort algorithm whenever there are repeated values."
   (let* ((differ t)
          (len (length array)))
-  (loop
-     while differ
-     do
-       (setf differ nil)
-       (loop
-          for i below (1- len)
-          do (when (not (funcall predicate
-                                 (aref array i)
-                                 (aref array (1+ i))))
-               (rotatef (aref array i)
-                        (aref array (1+ i)))
-               (setf differ t))))
-  array))
+    (loop
+       while differ
+       do
+         (setf differ nil)
+         (loop
+            for i below (1- len)
+            do (when (not (funcall predicate
+                                   (aref array i)
+                                   (aref array (1+ i))))
+                 (rotatef (aref array i)
+                          (aref array (1+ i)))
+                 (setf differ t))))
+    array))
 
 (defun merge-sort! (array
                     &optional
@@ -113,7 +113,7 @@ contains the sorted elements at the end of the computation."
                     (when (> x max)
                       (setf max x))
                   ;; This isn't necessary since div=1:
-                  ;; 
+                  ;;
                   ;; (incf (aref counts (mod (truncate x div)
                   ;;                         divisor)))
                   ;; So we can just do this:
@@ -168,3 +168,53 @@ contains the sorted elements at the end of the computation."
            do (setf (aref array i)
                     (aref buf1 i))))
       array)))
+
+(defun quick-sort! (array &optional (predicate #'<=))
+  "In-place quick sort algorithm for arrays."
+  (labels ((partition (pivot start end)
+             (let* ((nleft 0)
+                    (nright 0))
+               ;; debug
+               (print (list 'partition-before
+                            array
+                            pivot start end))
+               ;; end debug
+               (symbol-macrolet ((next-left (+ start nleft))
+                                 (next-right (- end nright 1)))
+                 (loop
+                    while (< next-left next-right)
+                    do
+                      (cond
+                        ((funcall predicate
+                                  (aref array next-left)
+                                  pivot)
+                         (incf nleft))
+                        (t
+                         (rotatef (aref array next-left)
+                                  (aref array next-right))
+                         (incf nright))))
+                 ;; debug
+                 (print (list 'partition-after array))
+                 ;; end debug
+                 ;; next-left
+                 next-left
+                 )))
+           (qsort (start end)
+             (declare (integer start end))
+             ;; debug
+             ;; (print (list start end array))
+             ;; end debug
+             (let* ((n (- end start)))
+               (when (> n 1)
+                 (let* ((pivot-index (+ start (random n))))
+                   (setf pivot-index
+                         (partition (aref array pivot-index)
+                                    start
+                                    end))
+                   ;; debug
+                   ;; (print (list pivot-index array))
+                   ;; end debug
+                   (qsort start (1- pivot-index))
+                   (qsort (1+ pivot-index) end))))))
+    (qsort 0 (length array))
+    array))
